@@ -47,8 +47,6 @@ def get_sertifikat_from_blockchain(id_blockchain):
         "valid": cert[9],
     }
 
-
-
 @app.route('/simpan_sertifikat', methods=['POST'])
 def simpan_sertifikat():
     try:
@@ -173,9 +171,6 @@ def terbitkan_sertifikat_blockchain():
         import traceback
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
-
-
-
     
 @app.route('/verifikasi_sertifikat', methods=['POST'])
 def verifikasi_sertifikat():
@@ -208,23 +203,49 @@ def verifikasi_sertifikat():
         blockchain_hash = contract.functions.getHashByPenerima(data['penerima']).call()
 
         # Cek apakah hash yang dihitung sama dengan yang ada di blockchain
-        if cert_hash == blockchain_hash:
-            return jsonify({
-                "status": "valid",
-                "message": "✅ Sertifikat Terdaftar di Blockchain",
-                "data": structured_data,
-                "hashBlockchain": blockchain_hash
-            }), 200
-        else:
+        if cert_hash != blockchain_hash:
             return jsonify({
                 "status": "invalid",
                 "message": "❗ Maaf, sertifikat tidak ditemukan di dalam sistem.",
                 "note": "Kemungkinan palsu atau tidak diterbitkan melalui sistem ini"
             }), 404
 
+        # Ambil tx_hash terbaru dari penerima (menggunakan service)
+        tx_hash = transaction_service.get_latest_tx_hash_by_receiver(data["penerima"])
+        if not tx_hash:
+            # Jika tidak ditemukan tx_hash di DB, tetap kirim valid tapi tanpa info block
+            return jsonify({
+                "status": "valid",
+                "message": "✅ Sertifikat Terdaftar di Blockchain",
+                "data": structured_data,
+                "hashBlockchain": blockchain_hash,
+                "blockchain_block": None
+            }), 200
+
+        # Ambil transaksi dan blok dari tx_hash
+        tx = w3.eth.get_transaction(tx_hash)
+        block = w3.eth.get_block(tx.blockHash)
+
+        block_info = {
+            'number': block.number,
+            'hash': block.hash.hex(),
+            'parentHash': block.parentHash.hex(),
+            'timestamp': block.timestamp,
+            'transactions_count': len(block.transactions)
+        }
+
+        return jsonify({
+            "status": "valid",
+            "message": "✅ Sertifikat Terdaftar di Blockchain",
+            "data": structured_data,
+            "hashBlockchain": blockchain_hash,
+            "blockchain_block": block_info
+        }), 200
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-    
+
+
 @app.route('/verifikasi_sertifikat_by_hash', methods=['POST'])
 def verifikasi_sertifikat_by_hash():
     try:
@@ -235,7 +256,12 @@ def verifikasi_sertifikat_by_hash():
         if not penerima or not data_hash:
             return jsonify({"error": "Missing penerima or data_hash"}), 400
 
-        # Ambil hash dari blockchain berdasarkan penerima
+        # Ambil tx_hash terbaru berdasarkan penerima
+        tx_hash = transaction_service.get_latest_tx_hash_by_receiver(penerima)
+        if not tx_hash:
+            return jsonify({"error": "Transaction hash for this recipient not found"}), 404
+
+        # Ambil hash yang tersimpan di blockchain berdasarkan penerima
         blockchain_hash = contract.functions.getHashByPenerima(penerima).call()
 
         if blockchain_hash != data_hash:
@@ -255,7 +281,18 @@ def verifikasi_sertifikat_by_hash():
         # Ambil data sertifikat lengkap berdasarkan ID
         cert = contract.functions.daftarSertifikat(cert_id).call()
 
-        # Format data sertifikat sesuai output ABI
+        # Ambil transaksi dan blok dari tx_hash
+        tx = w3.eth.get_transaction(tx_hash)
+        block = w3.eth.get_block(tx.blockHash)
+
+        block_info = {
+            'number': block.number,
+            'hash': block.hash.hex(),
+            'parentHash': block.parentHash.hex(),
+            'timestamp': block.timestamp,
+            'transactions_count': len(block.transactions)
+        }
+
         sertifikat_data = {
             "id": cert[0],
             "penerima": cert[1],
@@ -272,7 +309,8 @@ def verifikasi_sertifikat_by_hash():
         return jsonify({
             "status": "valid",
             "message": "✅ Sertifikat terverifikasi dan data sesuai dengan yang diblockchain",
-            "sertifikat": sertifikat_data
+            "sertifikat": sertifikat_data,
+            "blockchain_block": block_info
         }), 200
 
     except Exception as e:
@@ -298,274 +336,6 @@ def get_sertifikat_by_address():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
-# @app.route('/verifikasi_sertifikat', methods=['POST'])
-# def verifikasi_sertifikat():
-#     try:
-#         data = request.get_json()
-
-#         # Validasi kelengkapan data dari QR
-#         required_fields = ['penerima', 'nama', 'kursus', 'institusi', 'tanggal']
-#         if not all(field in data for field in required_fields):
-#             return jsonify({"error": "Data sertifikat tidak lengkap"}), 400
-
-#         # Siapkan data untuk hashing
-#         structured_data = {
-#             "penerima": data["penerima"],
-#             "nama": data["nama"],
-#             "kursus": data["kursus"],
-#             "institusi": data["institusi"],
-#             "tanggal": data["tanggal"],
-#         }
-
-#         # Hash data sertifikat (untuk disimpan ke blockchain)
-#         cert_hash = hash_cert_data(structured_data)
-
-#         # Ambil semua hash dari blockchain berdasarkan alamat penerima
-#         blockchain_hashes = contract.functions.getHashByPenerima(data['penerima']).call()
-
-#         # Cek apakah cert_hash ada di dalam blockchain_hashes
-#         if cert_hash in blockchain_hashes:
-#             # Sertifikat valid
-#             return jsonify({
-#                 "status": "valid",
-#                 "message": "✅ Sertifikat Terdaftar di Blockchain",
-#                 "data": {
-#                     "Nama Mahasiswa": data["nama"],
-#                     "Kursus": data["kursus"],
-#                     "Tanggal Terbit": data["tanggal"],
-#                     "Institusi Penerbit": data["institusi"],
-#                     "Link Hash Blockchain": blockchain_hashes  # Bisa kirim semua hash terkait
-#                 }
-#             }), 200
-#         else:
-#             # Sertifikat tidak cocok
-#             return jsonify({
-#                 "status": "invalid",
-#                 "message": "❗ Maaf, sertifikat tidak ditemukan di dalam sistem.",
-#                 "note": "Kemungkinan palsu atau tidak diterbitkan melalui sistem ini"
-#             }), 404
-
-#     except Exception as e:
-#         return jsonify({"error": str(e)}), 500
-
-# @app.route('/simpan_sertifikat', methods=['POST'])
-# def simpan_sertifikat():
-#     try:
-#         data = request.get_json()
-
-#         penerima = data.get('penerima')
-#         nama = data.get('nama')
-#         kursus = data.get('kursus')
-#         institusi = data.get('institusi')
-#         tanggal = data.get('tanggal')
-
-#         if not penerima or not nama or not kursus or not institusi or not tanggal:
-#             return jsonify({"error": "Missing required fields"}), 400
-
-#         # Generate UUID string sebagai id
-#         new_id = str(uuid.uuid4())
-
-#         # Simpan ke DB dengan kolom id bertipe CHAR(36)
-#         connection = get_db_connection()
-#         cursor = connection.cursor()
-#         insert_query = """
-#             INSERT INTO sertifikat (id, penerima, nama, kursus, institusi, tanggal)
-#             VALUES (%s, %s, %s, %s, %s, %s)
-#         """
-#         cursor.execute(insert_query, (new_id, penerima, nama, kursus, institusi, tanggal))
-#         connection.commit()
-#         cursor.close()
-#         connection.close()
-
-#         return jsonify({
-#             "message": "Data sertifikat berhasil disimpan di database",
-#             "id": new_id
-#         }), 201
-
-#     except Exception as e:
-#         return jsonify({"error": str(e)}), 500
-    
-# Fungsi untuk menerbitkan sertifikat dan simpan transaksi ke MySQL
-# @app.route('/terbitkan_sertifikat', methods=['POST'])
-# def terbitkan_sertifikat():
-#     try:
-#         data = request.get_json()
-
-#         penerima = data.get('penerima')
-#         nama = data.get('nama')
-#         kursus = data.get('kursus')
-#         institusi = data.get('institusi')
-#         tanggal = data.get('tanggal')
-
-#         if not penerima or not nama or not kursus or not institusi or not tanggal:
-#             return jsonify({"error": "Missing required fields"}), 400
-
-#         private_key = '0xc4cb430e44795a10095705dac776c9f274fb69697e5c01db8f8d07265391561a'
-#         account = w3.eth.account.from_key(private_key)
-#         address = account.address
-#         nonce = w3.eth.get_transaction_count(address)
-
-#         # Format data sertifikat
-#         cert_data = {
-#             "penerima": penerima,
-#             "nama": nama,
-#             "kursus": kursus,
-#             "institusi": institusi,
-#             "tanggal": tanggal
-#         }
-
-#         # Hash data sertifikat (untuk disimpan ke blockchain)
-#         cert_hash = hash_cert_data(cert_data)
-
-#         # Kirim ke blockchain (bisa ubah parameter kontrak sesuai kebutuhan)
-#         tx = contract.functions.terbitkanSertifikat(
-#             penerima, nama, kursus, institusi, tanggal, cert_hash
-#         ).build_transaction({
-#             'nonce': nonce,
-#             'maxFeePerGas': 3000000000,
-#             'maxPriorityFeePerGas': 2000000000,
-#             'gas': 1000000,
-#             'value': 0,
-#             'type': 2,
-#             'chainId': 1337
-#         })
-
-        
-
-#         signed_tx = w3.eth.account.sign_transaction(tx, private_key)
-#         tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
-
-#         # Simpan ke MySQL
-#         connection = get_db_connection()
-#         cursor = connection.cursor()
-#         insert_query = """
-#             INSERT INTO transactions (transaction_hash, sender_address, receiver_address, amount)
-#             VALUES (%s, %s, %s, %s)
-#         """
-#         cursor.execute(insert_query, (
-#             tx_hash.hex(),
-#             address,
-#             penerima,
-#             0
-#         ))
-#         connection.commit()
-#         cursor.close()
-#         connection.close()
-
-#         # Generate QR Code dari DATA sertifikat (bukan hanya hash)
-#         qr = qrcode.make(json.dumps(cert_data, separators=(',', ':'), sort_keys=True))
-#         buffer = BytesIO()
-#         qr.save(buffer, format="PNG")
-#         buffer.seek(0)
-#         img_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
-
-#         return jsonify({
-#             "transaction_hash": tx_hash.hex(),
-#             "data_hash": cert_hash,
-#             "qr_code_base64": img_base64,
-#             "sertifikat_data": cert_data
-#         }), 200
-
-#     except ValueError as ve:
-#         return jsonify({"error": str(ve)}), 400
-#     except Exception as e:
-#         return jsonify({"error": str(e)}), 500
-    
-# Endpoint 2: Ambil data dari database lalu kirim ke blockchain
-# @app.route('/terbitkan_sertifikat_blockchain', methods=['POST'])
-# def terbitkan_sertifikat_blockchain():
-#     try:
-#         data = request.get_json()
-#         # Misal client kirim parameter ID sertifikat yang sudah ada di DB
-#         sertifikat_id = data.get('sertifikat_id')
-#         if not sertifikat_id:
-#             return jsonify({"error": "Missing sertifikat_id"}), 400
-
-#         # Ambil data sertifikat dari DB berdasarkan ID
-#         connection = get_db_connection()
-#         cursor = connection.cursor(dictionary=True)
-#         select_query = "SELECT * FROM sertifikat WHERE id = %s"
-#         cursor.execute(select_query, (sertifikat_id,))
-#         row = cursor.fetchone()
-#         cursor.close()
-#         connection.close()
-
-#         if not row:
-#             return jsonify({"error": "Sertifikat tidak ditemukan di database"}), 404
-
-#         penerima = row['penerima']
-#         nama = row['nama']
-#         kursus = row['kursus']
-#         institusi = row['institusi']
-#         tanggal = row['tanggal']
-#         tanggal_str = tanggal.isoformat()
-
-#         # Prepare data sertifikat
-#         cert_data = {
-#             "penerima": penerima,
-#             "nama": nama,
-#             "kursus": kursus,
-#             "institusi": institusi,
-#             "tanggal": tanggal_str
-#         }
-
-#         # Hash data sertifikat
-#         cert_hash = hash_cert_data(cert_data)
-
-#         private_key = '0xc4cb430e44795a10095705dac776c9f274fb69697e5c01db8f8d07265391561a'
-#         account = w3.eth.account.from_key(private_key)
-#         address = account.address
-#         nonce = w3.eth.get_transaction_count(address)
-
-#         # Build transaction kirim ke blockchain
-#         tx = contract.functions.terbitkanSertifikat(
-#             penerima, nama, kursus, institusi, tanggal_str, cert_hash
-#         ).build_transaction({
-#             'nonce': nonce,
-#             'maxFeePerGas': 3000000000,
-#             'maxPriorityFeePerGas': 2000000000,
-#             'gas': 1000000,
-#             'value': 0,
-#             'type': 2,
-#             'chainId': 1337
-#         })
-
-#         signed_tx = w3.eth.account.sign_transaction(tx, private_key)
-#         tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
-
-#         # Update atau simpan transaksi ke DB (optional)
-#         connection = get_db_connection()
-#         cursor = connection.cursor()
-#         insert_tx_query = """
-#             INSERT INTO transactions (transaction_hash, sender_address, receiver_address, amount)
-#             VALUES (%s, %s, %s, %s)
-#         """
-#         cursor.execute(insert_tx_query, (tx_hash.hex(), address, penerima, 0))
-#         connection.commit()
-#         cursor.close()
-#         connection.close()
-
-#         # Generate QR Code dari DATA sertifikat
-#         qr = qrcode.make(json.dumps(cert_data, separators=(',', ':'), sort_keys=True))
-#         buffer = BytesIO()
-#         qr.save(buffer, format="PNG")
-#         buffer.seek(0)
-#         img_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
-
-#         return jsonify({
-#             "transaction_hash": tx_hash.hex(),
-#             "data_hash": cert_hash,
-#             "qr_code_base64": img_base64,
-#             "sertifikat_data": cert_data
-#         }), 200
-
-#     except ValueError as ve:
-#         return jsonify({"error": str(ve)}), 400
-#     except Exception as e:
-#         return jsonify({"error": str(e)}), 500
-
-
 # Endpoint untuk melihat semua transaksi yang disimpan di MySQL
 @app.route('/sertifikat', methods=['GET'])
 def get_all_sertifikat():
@@ -588,35 +358,6 @@ def get_all_sertifikat():
         return jsonify({"sertifikat": data}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-
-# @app.route('/transactions', methods=['GET'])
-# def get_transactions():
-#     try:
-#         connection = get_db_connection()
-#         cursor = connection.cursor()
-
-#         cursor.execute("SELECT * FROM transactions")
-#         rows = cursor.fetchall()
-
-#         transactions = []
-#         for row in rows:
-#             transaction = {
-#                 "id": row[0],
-#                 "transaction_hash": row[1],
-#                 "sender_address": row[2],
-#                 "receiver_address": row[3],
-#                 "amount": row[4],
-#                 "timestamp": row[5]
-#             }
-#             transactions.append(transaction)
-
-#         cursor.close()
-#         connection.close()
-
-#         return jsonify({"transactions": transactions}), 200
-#     except Exception as e:
-#         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -42,3 +42,13 @@ class TransactionService:
         Ambil daftar transaksi terbaru, default limit 100.
         """
         return self.session.query(Transaction).order_by(Transaction.timestamp.desc()).limit(limit).all()
+    
+    def get_latest_tx_hash_by_receiver(self, receiver_address: str):
+        transaction = self.session.query(Transaction) \
+            .filter_by(receiver_address=receiver_address) \
+            .order_by(Transaction.timestamp.desc()) \
+            .first()
+        if transaction:
+            return transaction.transaction_hash
+        return None
+
