@@ -9,15 +9,9 @@ contract_abi = [
       "inputs": [
         {
           "indexed": False,
-          "internalType": "uint256",
+          "internalType": "bytes32",
           "name": "id",
-          "type": "uint256"
-        },
-        {
-          "indexed": False,
-          "internalType": "address",
-          "name": "penerima",
-          "type": "address"
+          "type": "bytes32"
         },
         {
           "indexed": False,
@@ -66,6 +60,18 @@ contract_abi = [
           "internalType": "string",
           "name": "dataHash",
           "type": "string"
+        },
+        {
+          "indexed": False,
+          "internalType": "string",
+          "name": "urlCid",
+          "type": "string"
+        },
+        {
+          "indexed": False,
+          "internalType": "uint256",
+          "name": "blockNumber",
+          "type": "uint256"
         }
       ],
       "name": "SertifikatDiterbitkan",
@@ -93,17 +99,32 @@ contract_abi = [
           "type": "uint256"
         }
       ],
+      "name": "allIds",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function",
+      "constant": True
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
       "name": "daftarSertifikat",
       "outputs": [
         {
-          "internalType": "uint256",
+          "internalType": "bytes32",
           "name": "id",
-          "type": "uint256"
-        },
-        {
-          "internalType": "address",
-          "name": "penerima",
-          "type": "address"
+          "type": "bytes32"
         },
         {
           "internalType": "string",
@@ -141,6 +162,16 @@ contract_abi = [
           "type": "string"
         },
         {
+          "internalType": "string",
+          "name": "urlCid",
+          "type": "string"
+        },
+        {
+          "internalType": "uint256",
+          "name": "blockNumber",
+          "type": "uint256"
+        },
+        {
           "internalType": "bool",
           "name": "valid",
           "type": "bool"
@@ -153,12 +184,12 @@ contract_abi = [
     {
       "inputs": [
         {
-          "internalType": "address",
+          "internalType": "bytes32",
           "name": "",
-          "type": "address"
+          "type": "bytes32"
         }
       ],
-      "name": "hashByPenerima",
+      "name": "hashById",
       "outputs": [
         {
           "internalType": "string",
@@ -171,46 +202,7 @@ contract_abi = [
       "constant": True
     },
     {
-      "inputs": [],
-      "name": "jumlahSertifikat",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function",
-      "constant": True
-    },
-    {
       "inputs": [
-        {
-          "internalType": "address",
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "name": "sertifikatIdByPenerima",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function",
-      "constant": True
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "penerima",
-          "type": "address"
-        },
         {
           "internalType": "string",
           "name": "nama",
@@ -250,6 +242,11 @@ contract_abi = [
           "internalType": "string",
           "name": "dataHash",
           "type": "string"
+        },
+        {
+          "internalType": "string",
+          "name": "urlCid",
+          "type": "string"
         }
       ],
       "name": "terbitkanSertifikat",
@@ -258,20 +255,29 @@ contract_abi = [
       "type": "function"
     },
     {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "id",
-          "type": "uint256"
-        }
-      ],
-      "name": "verifikasiSertifikat",
+      "inputs": [],
+      "name": "getAllIds",
       "outputs": [
         {
-          "internalType": "address",
-          "name": "penerima",
-          "type": "address"
-        },
+          "internalType": "bytes32[]",
+          "name": "",
+          "type": "bytes32[]"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function",
+      "constant": True
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "id",
+          "type": "bytes32"
+        }
+      ],
+      "name": "getSertifikat",
+      "outputs": [
         {
           "internalType": "string",
           "name": "nama",
@@ -308,6 +314,16 @@ contract_abi = [
           "type": "string"
         },
         {
+          "internalType": "string",
+          "name": "urlCid",
+          "type": "string"
+        },
+        {
+          "internalType": "uint256",
+          "name": "blockNumber",
+          "type": "uint256"
+        },
+        {
           "internalType": "bool",
           "name": "valid",
           "type": "bool"
@@ -320,32 +336,12 @@ contract_abi = [
     {
       "inputs": [
         {
-          "internalType": "address",
-          "name": "penerima",
-          "type": "address"
+          "internalType": "bytes32",
+          "name": "id",
+          "type": "bytes32"
         }
       ],
-      "name": "cekSertifikatByPenerima",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function",
-      "constant": True
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "penerima",
-          "type": "address"
-        }
-      ],
-      "name": "getHashByPenerima",
+      "name": "getHashById",
       "outputs": [
         {
           "internalType": "string",
@@ -359,5 +355,4 @@ contract_abi = [
     }
   ]
 
-
-contract_address = '0x1352E410B9E9ca9423eE476957745F4FAaE04C58' # Ganti sesuai alamat kontrak kamu
+contract_address = '0x6CfcD5270680863aaBa6BC7B421B07AdC235fC79' # Ganti sesuai alamat kontrak kamu
