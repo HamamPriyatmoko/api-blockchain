@@ -204,6 +204,26 @@ contract_abi = [
     {
       "inputs": [
         {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "name": "idByHash",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function",
+      "constant": True
+    },
+    {
+      "inputs": [
+        {
           "internalType": "string",
           "name": "nama",
           "type": "string"
@@ -276,7 +296,7 @@ contract_abi = [
           "type": "bytes32"
         }
       ],
-      "name": "getSertifikat",
+      "name": "verifySertifikat",
       "outputs": [
         {
           "internalType": "string",
@@ -336,6 +356,26 @@ contract_abi = [
     {
       "inputs": [
         {
+          "internalType": "string",
+          "name": "dataHash",
+          "type": "string"
+        }
+      ],
+      "name": "verifyHash",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function",
+      "constant": True
+    },
+    {
+      "inputs": [
+        {
           "internalType": "bytes32",
           "name": "id",
           "type": "bytes32"
@@ -355,4 +395,4 @@ contract_abi = [
     }
   ]
 
-contract_address = '0x6CfcD5270680863aaBa6BC7B421B07AdC235fC79' # Ganti sesuai alamat kontrak kamu
+contract_address = '0x2598eAe385c09d6764222f8FAe64BED68D8bb0e1' # Ganti sesuai alamat kontrak kamu

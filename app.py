@@ -105,7 +105,7 @@ def terbitkan_sertifikat_blockchain():
         import traceback; traceback.print_exc()
         return jsonify({"error": str(e)}), 500
     
-@app.route('/verifikasi_sertifikat', methods=['POST'])
+@app.route('/verifikasi_admin', methods=['POST'])
 def verifikasi_sertifikat():
     try:
         data = request.get_json()
@@ -136,7 +136,7 @@ def verifikasi_sertifikat():
             }), 404
 
         # Ambil data sertifikat lengkap termasuk blockNumber dari smart contract
-        cert_data = contract.functions.getSertifikat(data['id']).call()
+        cert_data = contract.functions.verifySertifikat(data['id']).call()
         # Struktur pengembalian: (nama, universitas, jurusan, toefl, bta, skp, tanggal, urlCid, blockNumber, valid)
 
         block_number = cert_data[8]  # blockNumber pada posisi ke-9 (index 8)
@@ -161,6 +161,106 @@ def verifikasi_sertifikat():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
+
+@app.route('/verifikasi_public', methods=['POST'])
+def verifikasi_sertifikat_public():
+    try:
+        data = request.get_json()
+        required_fields = ['id', 'nama', 'universitas', 'jurusan',
+                           'sertifikatToefl', 'sertifikatBTA', 'sertifikatSKP', 'tanggal']
+
+        if not all(field in data for field in required_fields):
+            return jsonify({"error": "Data sertifikat tidak lengkap"}), 400
+
+        structured_data = {
+            "nama": data["nama"],
+            "universitas": data["universitas"],
+            "jurusan": data["jurusan"],
+            "sertifikatToefl": data["sertifikatToefl"],
+            "sertifikatBTA": data["sertifikatBTA"],
+            "sertifikatSKP": data["sertifikatSKP"],
+            "tanggal": data["tanggal"],
+        }
+
+        cert_hash = hash_cert_data(structured_data)
+        blockchain_hash = contract.functions.getHashById(data['id']).call()
+
+        if cert_hash != blockchain_hash:
+            return jsonify({
+                "status": "invalid",
+                "message": "❗ Maaf, sertifikat tidak ditemukan di dalam sistem.",
+                "note": "Kemungkinan palsu atau tidak diterbitkan melalui sistem ini"
+            }), 404
+
+        # Ambil data sertifikat lengkap termasuk blockNumber dari smart contract
+        cert_data = contract.functions.verifySertifikat(data['id']).call()
+        # Struktur pengembalian: (nama, universitas, jurusan, toefl, bta, skp, tanggal, urlCid, blockNumber, valid)
+
+        block_number = cert_data[8]  # blockNumber pada posisi ke-9 (index 8)
+
+        # Ambil blok berdasarkan blockNumber
+        block = w3.eth.get_block(block_number)
+        block_info = {
+            'number': block.number,
+            'hash': block.hash.hex(),
+            'parentHash': block.parentHash.hex(),
+            'timestamp': block.timestamp,
+            'transactions_count': len(block.transactions)
+        }
+
+        return jsonify({
+            "status": "valid",
+            "message": "✅ Sertifikat Terdaftar di Blockchain",
+            "blockchain_block": block_info
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/verify_by_hash', methods=['POST'])
+def verify_by_hash():
+    try:
+        # 1. Ambil data_hash dari request JSON
+        data = request.get_json()
+        if not data or 'data_hash' not in data:
+            return jsonify({"error": "Missing field 'data_hash'"}), 400
+
+        data_hash = data['data_hash']
+
+        # 2. Panggil smart contract verifyHash untuk dapatkan cert_id (bytes32)
+        cert_id = contract.functions.verifyHash(data_hash).call()
+
+        # 3. Cek apakah cert_id == 0x00…00 (belum ada)
+        zero_id = '0x' + '00' * 32
+        if cert_id == zero_id:
+            return jsonify({
+                "status": "invalid",
+                "message": "❗ Hash tidak ditemukan—sertifikat belum diterbitkan."
+            }), 404
+
+        # 4. Kalau ada, panggil verifySertifikat untuk detail lengkap
+        cert = contract.functions.verifySertifikat(cert_id).call()
+
+        # 5. Susun response JSON
+        response = {
+            "status": "valid",
+            "id": cert_id,
+            "nama":           cert[0],
+            "universitas":    cert[1],
+            "jurusan":        cert[2],
+            "sertifikatToefl": cert[3],
+            "sertifikatBTA":  cert[4],
+            "sertifikatSKP":  cert[5],
+            "tanggal":        cert[6],
+            "urlCid":         cert[7],
+            "blockNumber":    cert[8],
+            "valid":          cert[9]
+        }
+        return jsonify(response), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/get_data_sertifikat/<string:id_hex>', methods=['GET'])
 def get_data_sertifikat(id_hex):
@@ -172,7 +272,7 @@ def get_data_sertifikat(id_hex):
         id_bytes32 = Web3.to_bytes(hexstr=id_hex)
 
         # Panggil smart contract untuk data lengkap sertifikat
-        cert = contract.functions.getSertifikat(id_bytes32).call()
+        cert = contract.functions.verifySertifikat(id_bytes32).call()
 
         data = {
             "id": id_hex,
@@ -204,7 +304,7 @@ def get_all_sertifikat():
 
         sertifikat_list = []
         for id in all_ids:
-            data = contract.functions.getSertifikat(id).call()
+            data = contract.functions.verifySertifikat(id).call()
             sertifikat_list.append({
                 "id": id.hex(),
                 "nama": data[0],
