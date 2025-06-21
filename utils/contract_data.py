@@ -251,6 +251,20 @@ contract_abi = [
       "type": "function"
     },
     {
+      "inputs": [],
+      "name": "getAllId",
+      "outputs": [
+        {
+          "internalType": "bytes32[]",
+          "name": "",
+          "type": "bytes32[]"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function",
+      "constant": True
+    },
+    {
       "inputs": [
         {
           "internalType": "bytes32",
@@ -436,4 +450,4 @@ contract_abi = [
     }
   ]
 
-contract_address = '0xF25Ee349A1Bb6B2D5D82c291514759aB22A47122' # Ganti sesuai alamat kontrak kamu
+contract_address = '0x0EceC3f916704F4dC4468C6E9B1A919b5431BcF9' # Ganti sesuai alamat kontrak kamu

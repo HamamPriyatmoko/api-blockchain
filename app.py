@@ -252,7 +252,7 @@ def verify_by_hash():
 @app.route('/sertifikat', methods=['GET'])
 def get_all_sertifikat():
     try:
-        all_ids = contract.allIds()
+        all_ids = contract.functions.getSertifikatCount().call()
         print(all_ids)
 
         sertifikat_list = []
