@@ -22,9 +22,9 @@ else:
     print("Connection failed")
 
 contract = w3.eth.contract(address=contract_address, abi=contract_abi)
-    
-@app.route('/terbitkan_sertifikat_blockchain', methods=['POST'])
-def terbitkan_sertifikat_blockchain():
+
+@app.route('/sertifikat', methods=['POST'])
+def prepare_sertifikat():
     try:
         # 1. Ambil metadata dari form-data
         data = request.form.to_dict()
@@ -34,83 +34,57 @@ def terbitkan_sertifikat_blockchain():
             'sertifikatSKP', 'tanggal'
         ]
         if not all(f in data and data[f] for f in required_fields):
-            return jsonify({"error": "Missing required certificate fields"}), 400
+            return jsonify({"error": "Data sertifikat yang wajib diisi tidak lengkap"}), 400
 
-        # 2. Ambil dan upload tiga file PDF
+        # 2. Ambil dan unggah tiga file PDF ke IPFS
         pdf_toefl = request.files.get('pdf_toefl')
         pdf_bta   = request.files.get('pdf_bta')
         pdf_skp   = request.files.get('pdf_skp')
         if not (pdf_toefl and pdf_bta and pdf_skp):
             return jsonify({
-                "error": "All three PDF files are required: pdf_toefl, pdf_bta, pdf_skp"
+                "error": "Ketiga file PDF wajib diunggah: pdf_toefl, pdf_bta, pdf_skp"
             }), 400
 
         cid_toefl = upload_file_to_pinata(pdf_toefl.stream, pdf_toefl.filename)
         cid_bta   = upload_file_to_pinata(pdf_bta.stream,   pdf_bta.filename)
         cid_skp   = upload_file_to_pinata(pdf_skp.stream,   pdf_skp.filename)
 
-        # 3. Buat manifest JSON dan upload ke Pinata → satu CID manifest
+        # 3. Buat manifest JSON, lalu unggah ke IPFS
         manifest = {
             "pdfToefl": cid_toefl,
             "pdfBta":   cid_bta,
             "pdfSkp":   cid_skp
         }
-        manifest_cid = upload_json_to_pinata(manifest)
-        url_cid = f"https://ipfs.io/ipfs/{manifest_cid}"
-
-        # 4. Hash metadata (tanpa file)
+        url_cid = upload_json_to_pinata(manifest)
+        
         cert_meta = { k: data[k] for k in required_fields }
-        cert_hash = hash_cert_data(cert_meta)
+        
+        data_to_hash = cert_meta.copy()
+        data_to_hash['manifest_cid'] = url_cid
+        
+        #    Generate hash dari data gabungan (metadata + manifest_cid)
+        cert_hash = hash_cert_data(data_to_hash)
+        print(url_cid)
 
-        # 5. Build & kirim transaksi on-chain
-        acct  = w3.eth.account.from_key(PRIVATE_KEY)
-        nonce = w3.eth.get_transaction_count(acct.address)
-        tx = contract.functions.terbitkanSertifikat(
-            data['nama'],
-            data['universitas'],
-            data['jurusan'],
-            data['sertifikatToefl'],
-            data['sertifikatBTA'],
-            data['sertifikatSKP'],
-            data['tanggal'],
-            cert_hash,
-            url_cid
-        ).build_transaction({
-            'nonce': nonce,
-            'maxFeePerGas': 3_000_000_000,
-            'maxPriorityFeePerGas': 2_000_000_000,
-            'gas': 1_000_000,
-            'value': 0,
-            'type': 2,
-            'chainId': 1337
-        })
-
-        signed = w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
-        tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
-
+        # 5. Kembalikan hash, CID mentah, dan metadata bersih ke frontend.
         return jsonify({
-            "transaction_hash": tx_hash.hex(),
-            "file_cids": {
-                "toefl": cid_toefl,
-                "bta":   cid_bta,
-                "skp":   cid_skp
-            },
-            "manifest_cid": manifest_cid,
+            "message": "Data berhasil dipersiapkan",
+            "cert_hash": cert_hash,
             "url_cid": url_cid,
-            "data_hash": cert_hash,
             "sertifikat_meta": cert_meta
         }), 200
 
     except Exception as e:
         import traceback; traceback.print_exc()
         return jsonify({"error": str(e)}), 500
-    
+
 @app.route('/verifikasi_admin', methods=['POST'])
 def verifikasi_sertifikat():
     try:
         data = request.get_json()
+        print(data)
         required_fields = ['id', 'nama', 'universitas', 'jurusan',
-                           'sertifikatToefl', 'sertifikatBTA', 'sertifikatSKP', 'tanggal']
+                           'sertifikatToefl', 'sertifikatBTA', 'sertifikatSKP', 'tanggal', 'urlCid']
 
         if not all(field in data for field in required_fields):
             return jsonify({"error": "Data sertifikat tidak lengkap"}), 400
@@ -123,12 +97,16 @@ def verifikasi_sertifikat():
             "sertifikatBTA": data["sertifikatBTA"],
             "sertifikatSKP": data["sertifikatSKP"],
             "tanggal": data["tanggal"],
+            "manifest_cid" : data["urlCid"],
         }
 
-        cert_hash = hash_cert_data(structured_data)
-        blockchain_hash = contract.functions.getHashById(data['id']).call()
+        cert_hash = '' + hash_cert_data(structured_data)
+        print(type(cert_hash))
+        # cert_id_bytes = '0x' + data['id']
+        get_id_sertifikkat = contract.functions.verifyHash(cert_hash).call()
+        print('dapatkan id', get_id_sertifikkat)
 
-        if cert_hash != blockchain_hash:
+        if not get_id_sertifikkat:
             return jsonify({
                 "status": "invalid",
                 "message": "❗ Maaf, sertifikat tidak ditemukan di dalam sistem.",
@@ -136,10 +114,10 @@ def verifikasi_sertifikat():
             }), 404
 
         # Ambil data sertifikat lengkap termasuk blockNumber dari smart contract
-        cert_data = contract.functions.verifySertifikat(data['id']).call()
-        # Struktur pengembalian: (nama, universitas, jurusan, toefl, bta, skp, tanggal, urlCid, blockNumber, valid)
-
-        block_number = cert_data[8]  # blockNumber pada posisi ke-9 (index 8)
+        cert_data = contract.functions.getSertifikat(get_id_sertifikkat).call()
+        blockchain_hash = contract.functions.getHashById(get_id_sertifikkat).call()
+        
+        block_number = cert_data[8]
 
         # Ambil blok berdasarkan blockNumber
         block = w3.eth.get_block(block_number)
@@ -168,7 +146,7 @@ def verifikasi_sertifikat_public():
     try:
         data = request.get_json()
         required_fields = ['id', 'nama', 'universitas', 'jurusan',
-                           'sertifikatToefl', 'sertifikatBTA', 'sertifikatSKP', 'tanggal']
+                           'sertifikatToefl', 'sertifikatBTA', 'sertifikatSKP', 'tanggal', 'urlCid']
 
         if not all(field in data for field in required_fields):
             return jsonify({"error": "Data sertifikat tidak lengkap"}), 400
@@ -181,12 +159,13 @@ def verifikasi_sertifikat_public():
             "sertifikatBTA": data["sertifikatBTA"],
             "sertifikatSKP": data["sertifikatSKP"],
             "tanggal": data["tanggal"],
+            "manifest_cid": data["urlCid"],
         }
 
         cert_hash = hash_cert_data(structured_data)
-        blockchain_hash = contract.functions.getHashById(data['id']).call()
+        get_id_sertifikat = contract.functions.verifyHash(cert_hash).call()
 
-        if cert_hash != blockchain_hash:
+        if not get_id_sertifikat:
             return jsonify({
                 "status": "invalid",
                 "message": "❗ Maaf, sertifikat tidak ditemukan di dalam sistem.",
@@ -194,10 +173,9 @@ def verifikasi_sertifikat_public():
             }), 404
 
         # Ambil data sertifikat lengkap termasuk blockNumber dari smart contract
-        cert_data = contract.functions.verifySertifikat(data['id']).call()
-        # Struktur pengembalian: (nama, universitas, jurusan, toefl, bta, skp, tanggal, urlCid, blockNumber, valid)
-
-        block_number = cert_data[8]  # blockNumber pada posisi ke-9 (index 8)
+        cert_data = contract.functions.getSertifikat(get_id_sertifikat).call()
+        
+        block_number = cert_data[8]
 
         # Ambil blok berdasarkan blockNumber
         block = w3.eth.get_block(block_number)
@@ -225,37 +203,50 @@ def verify_by_hash():
         data = request.get_json()
         if not data or 'data_hash' not in data:
             return jsonify({"error": "Missing field 'data_hash'"}), 400
-
+        
         data_hash = data['data_hash']
 
         # 2. Panggil smart contract verifyHash untuk dapatkan cert_id (bytes32)
         cert_id = contract.functions.verifyHash(data_hash).call()
 
-        # 3. Cek apakah cert_id == 0x00…00 (belum ada)
-        zero_id = '0x' + '00' * 32
-        if cert_id == zero_id:
+        if not cert_id:
             return jsonify({
                 "status": "invalid",
-                "message": "❗ Hash tidak ditemukan—sertifikat belum diterbitkan."
+                "message": "❗ Data sertifikat tidak ditemukan."
             }), 404
 
-        # 4. Kalau ada, panggil verifySertifikat untuk detail lengkap
-        cert = contract.functions.verifySertifikat(cert_id).call()
+        cert = contract.functions.getSertifikat(cert_id).call()
+        hash_blockchain = contract.functions.getHashById(cert_id).call()
+
+        block_number = cert[8]
+        block = w3.eth.get_block(block_number)
+        print(block)
+        block_info = {
+            'number': block.number,
+            'hash': block.hash.hex(),
+            'parentHash': block.parentHash.hex(),
+            'timestamp': block.timestamp,
+            'transactions_count': len(block.transactions)
+        }
+
+        structured_data = {
+            "nama": cert[0],
+            "universitas": cert[1],
+            "jurusan": cert[2],
+            "sertifikatToefl": cert[3],
+            "sertifikatBTA": cert[4],
+            "sertifikatSKP": cert[5],
+            "tanggal": cert[6],
+            "urlCid": cert[7],
+        }
 
         # 5. Susun response JSON
         response = {
             "status": "valid",
-            "id": cert_id,
-            "nama":           cert[0],
-            "universitas":    cert[1],
-            "jurusan":        cert[2],
-            "sertifikatToefl": cert[3],
-            "sertifikatBTA":  cert[4],
-            "sertifikatSKP":  cert[5],
-            "tanggal":        cert[6],
-            "urlCid":         cert[7],
-            "blockNumber":    cert[8],
-            "valid":          cert[9]
+            "message": "✅ Sertifikat Terdaftar di Blockchain",
+            "data": structured_data,
+            "hashBlockchain": hash_blockchain,
+            "blockchain_block": block_info,
         }
         return jsonify(response), 200
 
@@ -272,7 +263,7 @@ def get_data_sertifikat(id_hex):
         id_bytes32 = Web3.to_bytes(hexstr=id_hex)
 
         # Panggil smart contract untuk data lengkap sertifikat
-        cert = contract.functions.verifySertifikat(id_bytes32).call()
+        cert = contract.functions.getSertifikat(id_bytes32).call()
 
         data = {
             "id": id_hex,
@@ -301,10 +292,11 @@ def get_data_sertifikat(id_hex):
 def get_all_sertifikat():
     try:
         all_ids = contract.functions.getAllIds().call()
+        print(all_ids)
 
         sertifikat_list = []
         for id in all_ids:
-            data = contract.functions.verifySertifikat(id).call()
+            data = contract.functions.getSertifikat(id).call()
             sertifikat_list.append({
                 "id": id.hex(),
                 "nama": data[0],
