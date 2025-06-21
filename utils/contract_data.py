@@ -33,9 +33,9 @@ contract_abi = [
         },
         {
           "indexed": False,
-          "internalType": "bytes32",
+          "internalType": "string",
           "name": "hashMetadata",
-          "type": "bytes32"
+          "type": "string"
         }
       ],
       "name": "SertifikatDiterbitkan",
@@ -116,9 +116,9 @@ contract_abi = [
           "type": "string"
         },
         {
-          "internalType": "bytes32",
+          "internalType": "string",
           "name": "hashMetadata",
-          "type": "bytes32"
+          "type": "string"
         },
         {
           "internalType": "string",
@@ -163,9 +163,9 @@ contract_abi = [
     {
       "inputs": [
         {
-          "internalType": "bytes32",
+          "internalType": "string",
           "name": "",
-          "type": "bytes32"
+          "type": "string"
         }
       ],
       "name": "idByHashMetadata",
@@ -210,9 +210,9 @@ contract_abi = [
               "type": "string"
             },
             {
-              "internalType": "bytes32",
+              "internalType": "string",
               "name": "hashMetadata",
-              "type": "bytes32"
+              "type": "string"
             },
             {
               "internalType": "string",
@@ -293,9 +293,9 @@ contract_abi = [
               "type": "string"
             },
             {
-              "internalType": "bytes32",
+              "internalType": "string",
               "name": "hashMetadata",
-              "type": "bytes32"
+              "type": "string"
             },
             {
               "internalType": "string",
@@ -345,9 +345,9 @@ contract_abi = [
     {
       "inputs": [
         {
-          "internalType": "bytes32",
+          "internalType": "string",
           "name": "_hashMetadata",
-          "type": "bytes32"
+          "type": "string"
         }
       ],
       "name": "getSertifikatByHash",
@@ -385,9 +385,9 @@ contract_abi = [
               "type": "string"
             },
             {
-              "internalType": "bytes32",
+              "internalType": "string",
               "name": "hashMetadata",
-              "type": "bytes32"
+              "type": "string"
             },
             {
               "internalType": "string",
@@ -436,4 +436,4 @@ contract_abi = [
     }
   ]
 
-contract_address = '0xc884d924FD65a82631Fe1E8B6C77560543D9Ef9d' # Ganti sesuai alamat kontrak kamu
+contract_address = '0xF25Ee349A1Bb6B2D5D82c291514759aB22A47122' # Ganti sesuai alamat kontrak kamu
