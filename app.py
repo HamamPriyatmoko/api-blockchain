@@ -98,9 +98,52 @@ def terbitkan_sertifikat():
         traceback.print_exc()
         return jsonify({"error": f"Terjadi kesalahan fatal: {str(e)}"}), 500
 
-# Ganti fungsi verifikasi_sertifikat Anda yang lama dengan ini.
+# Endpoint untuk melihat semua transaksi yang disimpan di Blockchain
+@app.route('/sertifikat', methods=['GET'])
+def get_all_sertifikat():
+    try:
+        all_ids = contract.functions.getAllId().call()
+        print(all_ids)
 
-@app.route('/verifikasi_admin', methods=['POST'])
+        sertifikat_list = []
+        for id in all_ids:
+            data = contract.functions.getSertifikatById(id).call()
+            formatted_data = format_sertifikat_data(data)
+            sertifikat_list.append({
+                "id": w3.to_hex(id),
+                "nama": formatted_data['nama'],
+                "jurusan": formatted_data['jurusan'],
+                "terbit": formatted_data['tanggalTerbit']
+            })
+        return jsonify({"sertifikat": sertifikat_list}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# Mencari detail sertifikat menggunakan id
+@app.route('/sertifikat/<string:id_hex>', methods=['GET'])
+def get_data_sertifikat(id_hex):
+    try:
+        # Pastikan id dalam format hex string dengan prefix 0x
+        print(id_hex)
+        if not id_hex.startswith('0x'):
+            id_hex = '0x' + id_hex
+        id_bytes32 = Web3.to_bytes(hexstr=id_hex)
+
+        # Panggil smart contract untuk data lengkap sertifikat
+        cert_tuple = contract.functions.getSertifikatById(id_bytes32).call()
+
+        data = format_sertifikat_data(cert_tuple)
+
+        return jsonify({
+            "status": "success",
+            "sertifikat": data
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# Ganti fungsi verifikasi_sertifikat Anda yang lama dengan ini.
+@app.route('/admin/verifikasi', methods=['POST'])
 def verifikasi_sertifikat():
     """
     Endpoint verifikasi yang menerima data mentah, membuat hash di backend,
@@ -159,7 +202,7 @@ def verifikasi_sertifikat():
         }), 404
     
 
-@app.route('/verifikasi_public', methods=['POST'])
+@app.route('/verifikasi', methods=['POST'])
 def verifikasi_sertifikat_public():
     try:
         data = request.get_json()
@@ -204,7 +247,7 @@ def verifikasi_sertifikat_public():
             "note": "Data yang dimasukkan mungkin tidak cocok dengan data yang terdaftar di blockchain."
         }), 404
 
-@app.route('/verify_by_hash', methods=['POST'])
+@app.route('/verifikasi/hash', methods=['POST'])
 def verify_by_hash():
     try:
         # 1. Ambil data_hash dari request JSON
@@ -248,68 +291,26 @@ def verify_by_hash():
             "note": "Data yang dimasukkan mungkin tidak cocok dengan data yang terdaftar di blockchain."
         }), 404
 
-# Endpoint untuk melihat semua transaksi yang disimpan di Blockchain
-@app.route('/sertifikat', methods=['GET'])
-def get_all_sertifikat():
-    try:
-        all_ids = contract.functions.getSertifikatCount().call()
-        print(all_ids)
-
-        sertifikat_list = []
-        for id in all_ids:
-            data = contract.functions.getSertifikat(id).call()
-            sertifikat_list.append({
-                "id": id.hex(),
-                "nama": data[0],
-                "universitas": data[1],
-                "jurusan": data[2]
-            })
-        return jsonify({"sertifikat": sertifikat_list}), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/get_data_sertifikat/<string:id_hex>', methods=['GET'])
-def get_data_sertifikat(id_hex):
-    try:
-        # Pastikan id dalam format hex string dengan prefix 0x
-        print(id_hex)
-        if not id_hex.startswith('0x'):
-            id_hex = '0x' + id_hex
-        id_bytes32 = Web3.to_bytes(hexstr=id_hex)
-
-        # Panggil smart contract untuk data lengkap sertifikat
-        cert = contract.functions.getSertifikat(id_bytes32).call()
-
-        data = {
-            "id": id_hex,
-            "nama": cert[0],
-            "universitas": cert[1],
-            "jurusan": cert[2],
-            "sertifikatToefl": cert[3],
-            "sertifikatBTA": cert[4],
-            "sertifikatSKP": cert[5],
-            "tanggal": cert[6],
-            "urlCid": cert[7],
-            "blockNumber": cert[8],
-            "valid": cert[9]
-        }
-
-        return jsonify({
-            "status": "success",
-            "sertifikat": data
-        }), 200
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
 
-@app.route('/ipfs/data/<cid>', methods=['GET'])
-def get_ipfs_data(cid):
-    try:
-        data = get_json_from_ipfs(cid)
-        return jsonify(data), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+
+
+
+
+# @app.route('/ipfs/data/<cid>', methods=['GET'])
+# def get_ipfs_data(cid):
+#     try:
+#         if cid:
+#             data = get_json_from_ipfs(cid)
+#             return jsonify({
+#                 "url": data
+#             }), 200
+#         else:
+#             return jsonify({
+#                 "error": "Data CID Diperlukan"
+#             }), 404
+#     except Exception as e:
+#         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)

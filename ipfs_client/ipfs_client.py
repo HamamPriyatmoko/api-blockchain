@@ -41,8 +41,7 @@ def upload_json_to_pinata(data: dict) -> str:
 
 def get_json_from_ipfs(cid: str) -> dict:
     url = f"https://gateway.pinata.cloud/ipfs/{cid}"
-    response = requests.get(url)
-    if response.status_code == 200:
-        return response.json()
+    if cid:
+        return url
     else:
-        raise Exception(f"Failed to fetch data from IPFS: {response.status_code} {response.text}")
+        raise Exception(f"Failed to get cid")

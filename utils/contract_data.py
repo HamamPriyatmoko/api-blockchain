@@ -450,4 +450,4 @@ contract_abi = [
     }
   ]
 
-contract_address = '0x0EceC3f916704F4dC4468C6E9B1A919b5431BcF9' # Ganti sesuai alamat kontrak kamu
+contract_address = '0xAf31fB072dC37d16F82dfeB082fFBed0E38BE270' # Ganti sesuai alamat kontrak kamu
