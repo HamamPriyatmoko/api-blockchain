@@ -1,10 +1,11 @@
 from flask import Flask, request, jsonify
 from web3 import Web3
-from utils.utils import hash_cert_data, format_sertifikat_data
+from utils.utils import hash_cert_data, format_sertifikat_data, parse_certificate_text
 from utils.contract_data import contract_abi, contract_address
 from flask_cors import CORS
 from ipfs_client.ipfs_client import upload_json_to_pinata, get_json_from_ipfs, upload_file_to_pinata
 from config import PRIVATE_KEY
+import fitz
 
 
 # Setup Flask
@@ -256,6 +257,7 @@ def verify_by_hash():
             return jsonify({"error": "Data Hash Tidak Ada"}), 400
         
         data_hash = data['data_hash']
+        print(data_hash)
 
         # 2. Panggil smart contract verifyHash untuk dapatkan cert_id (bytes32)
         cert_data_tuple = contract.functions.getSertifikatByHash(data_hash).call()
@@ -271,7 +273,7 @@ def verify_by_hash():
         # 6. Kembalikan response yang sukses dan terstruktur
         return jsonify({
             "status": "valid",
-            "message": "✅ Sertifikat Ditemukan dan Terverifikasi di Blockchain",
+            "message": "Sertifikat Ditemukan dan Terverifikasi di Blockchain",
             "data_sertifikat": formatted_data, # Mengembalikan semua data sertifikat yang terverifikasi
             "info_blok": {
                 'nomorBlok': block.number,
@@ -292,10 +294,34 @@ def verify_by_hash():
         }), 404
 
 
+@app.route('/api/extract-text', methods=['POST'])
+def extract_text_from_pdf():
+    if 'pdfFile' not in request.files:
+        return jsonify({"error": "Tidak ada file PDF yang dikirim"}), 400
+    
+    file = request.files['pdfFile']
+    
+    if file.filename == '':
+        return jsonify({"error": "File tidak dipilih"}), 400
 
+    try:
+        pdf_document = fitz.open(stream=file.read(), filetype="pdf")
+        full_text = ""
+        for page_num in range(len(pdf_document)):
+            page = pdf_document.load_page(page_num)
+            full_text += page.get_text()
+        pdf_document.close()
+        
+        # --- BAGIAN YANG DIUBAH ---
+        # Sebelumnya: return jsonify({"extracted_text": full_text})
+        
+        # Sekarang: Panggil fungsi parsing dan kembalikan hasilnya
+        structured_data = parse_certificate_text(full_text)
+        
+        return jsonify(structured_data)
 
-
-
+    except Exception as e:
+        return jsonify({"error": f"Gagal memproses file PDF: {str(e)}"}), 500
 
 # @app.route('/ipfs/data/<cid>', methods=['GET'])
 # def get_ipfs_data(cid):
