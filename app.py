@@ -25,7 +25,7 @@ else:
 ADMIN_ACCOUNT = w3.eth.account.from_key(PRIVATE_KEY)
 contract = w3.eth.contract(address=contract_address, abi=contract_abi)
 
-@app.route('/sertifikat', methods=['POST'])
+@app.route('/api/sertifikat', methods=['POST'])
 def terbitkan_sertifikat():
     try:
         # 1. Ambil data teks dari form-data
@@ -100,7 +100,7 @@ def terbitkan_sertifikat():
         return jsonify({"error": f"Terjadi kesalahan fatal: {str(e)}"}), 500
 
 # Endpoint untuk melihat semua transaksi yang disimpan di Blockchain
-@app.route('/sertifikat', methods=['GET'])
+@app.route('/api/sertifikat', methods=['GET'])
 def get_all_sertifikat():
     try:
         all_ids = contract.functions.getAllId().call()
@@ -121,7 +121,7 @@ def get_all_sertifikat():
         return jsonify({"error": str(e)}), 500
 
 # Mencari detail sertifikat menggunakan id
-@app.route('/sertifikat/<string:id_hex>', methods=['GET'])
+@app.route('/api/sertifikat/<string:id_hex>', methods=['GET'])
 def get_data_sertifikat(id_hex):
     try:
         # Pastikan id dalam format hex string dengan prefix 0x
@@ -144,7 +144,7 @@ def get_data_sertifikat(id_hex):
         return jsonify({"error": str(e)}), 500
 
 # Ganti fungsi verifikasi_sertifikat Anda yang lama dengan ini.
-@app.route('/admin/verifikasi', methods=['POST'])
+@app.route('/api/admin/verifikasi', methods=['POST'])
 def verifikasi_sertifikat():
     """
     Endpoint verifikasi yang menerima data mentah, membuat hash di backend,
@@ -163,9 +163,7 @@ def verifikasi_sertifikat():
 
         # 2. Buat ulang hash metadata dari data yang diterima
         metadata_to_hash = {key: data[key] for key in core_data_fields}
-        hash_bytes = hash_cert_data(metadata_to_hash) # Fungsi ini harus mengembalikan 'bytes'
-
-        # print(f"Mencoba verifikasi dengan hash yang dibuat: {hash_bytes.hex()}")
+        hash_bytes = hash_cert_data(metadata_to_hash) 
 
         # 3. Lakukan SATU PANGGILAN ke smart contract menggunakan hash yang baru dibuat
         cert_data_tuple = contract.functions.getSertifikatByHash(hash_bytes).call()
@@ -183,7 +181,7 @@ def verifikasi_sertifikat():
         return jsonify({
             "status": "valid",
             "message": "✅ Sertifikat Ditemukan dan Terverifikasi di Blockchain",
-            "data_sertifikat": formatted_data, # Mengembalikan semua data sertifikat yang terverifikasi
+            "data_sertifikat": formatted_data,
             "info_blok": {
                 'nomorBlok': block.number,
                 'hashBlok': block.hash.hex(),
@@ -203,7 +201,7 @@ def verifikasi_sertifikat():
         }), 404
     
 
-@app.route('/verifikasi', methods=['POST'])
+@app.route('/api/verifikasi', methods=['POST'])
 def verifikasi_sertifikat_public():
     try:
         data = request.get_json()
@@ -228,8 +226,8 @@ def verifikasi_sertifikat_public():
         # 6. Kembalikan response yang sukses dan terstruktur
         return jsonify({
             "status": "valid",
-            "message": "✅ Sertifikat Ditemukan dan Terverifikasi di Blockchain",
-            "data_sertifikat": formatted_data, # Mengembalikan semua data sertifikat yang terverifikasi
+            "message": "Sertifikat Ditemukan dan Terverifikasi di Blockchain",
+            "data_sertifikat": formatted_data,
             "info_blok": {
                 'nomorBlok': block.number,
                 'hashBlok': block.hash.hex(),
@@ -240,7 +238,6 @@ def verifikasi_sertifikat_public():
         }), 200
 
     except Exception as e:
-        # Jika 'require' di smart contract gagal (hash tidak ditemukan), akan masuk ke sini
         print(f"Error saat verifikasi admin: {e}")
         return jsonify({
             "status": "invalid",
@@ -248,7 +245,7 @@ def verifikasi_sertifikat_public():
             "note": "Data yang dimasukkan mungkin tidak cocok dengan data yang terdaftar di blockchain."
         }), 404
 
-@app.route('/verifikasi/hash', methods=['POST'])
+@app.route('/api/verifikasi/hash', methods=['POST'])
 def verify_by_hash():
     try:
         # 1. Ambil data_hash dari request JSON
@@ -285,7 +282,6 @@ def verify_by_hash():
         }), 200
 
     except Exception as e:
-        # Jika 'require' di smart contract gagal (hash tidak ditemukan), akan masuk ke sini
         print(f"Error saat verifikasi admin: {e}")
         return jsonify({
             "status": "invalid",
@@ -294,7 +290,7 @@ def verify_by_hash():
         }), 404
 
 
-@app.route('/api/extract-text', methods=['POST'])
+@app.route('/api/extract-pdf', methods=['POST'])
 def extract_text_from_pdf():
     if 'pdfFile' not in request.files:
         return jsonify({"error": "Tidak ada file PDF yang dikirim"}), 400
@@ -311,9 +307,6 @@ def extract_text_from_pdf():
             page = pdf_document.load_page(page_num)
             full_text += page.get_text()
         pdf_document.close()
-        
-        # --- BAGIAN YANG DIUBAH ---
-        # Sebelumnya: return jsonify({"extracted_text": full_text})
         
         # Sekarang: Panggil fungsi parsing dan kembalikan hasilnya
         structured_data = parse_certificate_text(full_text)
