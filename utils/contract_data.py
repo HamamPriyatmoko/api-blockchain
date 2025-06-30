@@ -174,6 +174,19 @@ contract_abi = [
     {
       "inputs": [
         {
+          "internalType": "address",
+          "name": "_adminBaru",
+          "type": "address"
+        }
+      ],
+      "name": "ubahAdmin",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
           "components": [
             {
               "internalType": "string",

@@ -1,35 +1,55 @@
 import requests
 import json
 import os
+from dotenv import load_dotenv
 
-PINATA_API_KEY = os.getenv('PINATA_API_KEY')
-PINATA_SECRET_API_KEY = os.getenv('PINATA_SECRET_API_KEY')
+# Memuat environment variables dari file .env
+load_dotenv()
 
-def upload_directory_to_pinata(files_data, root_folder_name):
+PINATA_JWT = os.getenv('PINATA_JWT')
+
+# Pastikan PINATA_JWT tersedia
+if not PINATA_JWT:
+    raise ValueError("Variabel lingkungan PINATA_JWT tidak ditemukan. Harap periksa file .env Anda.")
+
+def upload_directory_to_pinata(files_data, directory_name="my-dir"):
     """
-    Mengunggah beberapa file sebagai satu direktori ke Pinata.
-    - files_data: list dari tuple (nama_file_di_folder, stream_file)
-    - root_folder_name: nama folder utama di IPFS.
-    Mengembalikan CID dari direktori tersebut.
+    PERINGATAN: Versi ini akan membuat struktur direktori bersarang
+    (contoh: /ipfs/CID/sertifikat-nim/namafile.pdf)
     """
     url = "https://api.pinata.cloud/pinning/pinFileToIPFS"
     headers = {
-        "pinata_api_key": PINATA_API_KEY,
-        "pinata_secret_api_key": PINATA_SECRET_API_KEY
+        "Authorization": f"Bearer {PINATA_JWT}"
     }
 
-    # Siapkan file untuk permintaan multipart/form-data
-    multipart_files = []
-    for filename, stream in files_data:
-        # Path file di dalam direktori IPFS
-        filepath_in_ipfs = f"{root_folder_name}/{filename}"
-        multipart_files.append(('file', (filepath_in_ipfs, stream.read())))
+    data = {
+        "pinataOptions": json.dumps({
+            "cidVersion": 1,
+            "wrapWithDirectory": True 
+        }),
+        "pinataMetadata": json.dumps({
+            "name": directory_name 
+        })
+    }
+
+    files = []
+    for fname, stream in files_data:
+        # Baris ini membuat path manual, yang menyebabkan direktori bersarang
+        full_path = f"{directory_name}/{fname}" 
+        
+        files.append(
+            ("file", (full_path, stream.read(), "application/octet-stream"))
+        )
 
     try:
-        response = requests.post(url, files=multipart_files, headers=headers)
-        response.raise_for_status()
-        return response.json()['IpfsHash']
-    except requests.exceptions.RequestException as e:
-        print(f"Error saat mengunggah direktori ke Pinata: {e}")
-        print(f"Response body: {e.response.text if e.response else 'No response'}")
-        raise
+        resp = requests.post(url, headers=headers, files=files, data=data, timeout=60) 
+        resp.raise_for_status()
+        return resp.json()["IpfsHash"]
+
+    except requests.exceptions.HTTPError as err:
+        error_message = f"Error dari Pinata API: {err.response.status_code} - {err.response.text}"
+        print(f"[Pinata] HTTP Error: {error_message}")
+        raise Exception(error_message) from err
+    except Exception as e:
+        print(f"[Pinata] Terjadi error tak terduga: {e}")
+        raise e
