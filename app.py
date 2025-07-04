@@ -93,6 +93,51 @@ def login():
     access_token = create_access_token(identity=user["id"])
     return jsonify({"access_token": access_token}), 200
 
+@app.route("/api/universitas", methods=["GET"])
+def get_universitas():
+    """Mengembalikan daftar semua universitas."""
+    try:
+        db = get_db()
+        with db.cursor(dictionary=True) as cursor:
+            cursor.execute("SELECT id, nama_universitas FROM universitas ORDER BY nama_universitas ASC")
+            all_universitas = cursor.fetchall()
+        return jsonify(all_universitas), 200
+    except Exception as e:
+        app.logger.error(f"Error fetching universitas: {e}")
+        return jsonify({"error": "Gagal mengambil data universitas"}), 500
+
+@app.route("/api/universitas/<int:id_universitas>/fakultas", methods=["GET"])
+def get_fakultas_by_universitas(id_universitas):
+    """Mengembalikan daftar fakultas untuk satu universitas tertentu."""
+    try:
+        db = get_db()
+        with db.cursor(dictionary=True) as cursor:
+            cursor.execute(
+                "SELECT id, nama_fakultas FROM fakultas WHERE id_universitas = %s ORDER BY nama_fakultas ASC", 
+                (id_universitas,)
+            )
+            fakultas_list = cursor.fetchall()
+        return jsonify(fakultas_list), 200
+    except Exception as e:
+        app.logger.error(f"Error fetching fakultas for university {id_universitas}: {e}")
+        return jsonify({"error": "Gagal mengambil data fakultas"}), 500
+
+@app.route("/api/fakultas/<int:id_fakultas>/jurusan", methods=["GET"])
+def get_jurusan_by_fakultas(id_fakultas):
+    """Mengembalikan daftar jurusan untuk satu fakultas tertentu."""
+    try:
+        db = get_db()
+        with db.cursor(dictionary=True) as cursor:
+            cursor.execute(
+                "SELECT id, nama_jurusan FROM jurusan WHERE id_fakultas = %s ORDER BY nama_jurusan ASC",
+                (id_fakultas,)
+            )
+            jurusan_list = cursor.fetchall()
+        return jsonify(jurusan_list), 200
+    except Exception as e:
+        app.logger.error(f"Error fetching jurusan for faculty {id_fakultas}: {e}")
+        return jsonify({"error": "Gagal mengambil data jurusan"}), 500
+
 @app.route('/api/certificate/metadata', methods=['GET'])
 def get_certificate_metadata():
     cid = request.args.get('cid')
@@ -232,4 +277,7 @@ def api_verify_pdf():
 if __name__ == '__main__':
     # The debug flag will be set based on an environment variable, e.g., FLASK_DEBUG
     # app.run(debug=os.getenv('FLASK_DEBUG', 'False').lower() in ['true', '1', 't'])
-    app.run(host='192.168.1.19', port=5000, debug=True)
+    host = os.getenv('FLASK_RUN_HOST', '0.0.0.0')
+    port = int(os.getenv('FLASK_RUN_PORT', 5000))
+    # debug_mode = os.getenv('FLASK_DEBUG', 'False').lower() in ['true', '1', 't']
+    app.run(host=host, port=port, debug=True)
