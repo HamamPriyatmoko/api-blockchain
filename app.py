@@ -21,6 +21,7 @@ load_dotenv()
 
 # Configuration from Environment Variables
 GANACHE_URL = os.getenv('GANACHE_URL')
+print(GANACHE_URL)
 PRIVATE_KEY = os.getenv('PRIVATE_KEY')
 IPFS_GATEWAY = os.getenv('IPFS_GATEWAY')
 CONTRACT_ADDRESS = os.getenv('CONTRACT_ADDRESS')
@@ -39,6 +40,7 @@ jwt = JWTManager(app)
 
 # Setup Web3 for connection
 w3 = Web3(Web3.HTTPProvider(GANACHE_URL))
+print(w3)
 
 # Verify Web3 connection
 if w3.is_connected():
@@ -144,7 +146,6 @@ def get_all_sertifikat():
 
 @app.route("/api/sertifikat", methods=["POST"])
 def api_sertifikat():
-    # ... (Bagian 1-4: pengambilan data, validasi, hash tetap sama) ...
     data = {
         "nim": request.form.get("nim", ""), "universitas": request.form.get("universitas", ""),
         "nomerSertifikat": request.form.get("nomerSertifikat", ""), "nama": request.form.get("nama", ""),
@@ -159,12 +160,9 @@ def api_sertifikat():
     metadata_to_hash = {"nim": data["nim"], "universitas": data["universitas"], "nomerSertifikat": data["nomerSertifikat"],}
     hashMetadata = hash_cert_data(metadata_to_hash)
 
-    # Definisikan nama file unik
     ijazah_filename = f"ijazah_{data['nim']}.pdf"
     skpi_filename = f"skpi_{data['nim']}.pdf"
 
-    # --- PERUBAHAN NAMA KEY DI SINI ---
-    # 5) Buat konten metadata dengan nama key yang Anda inginkan
     full_metadata_for_ipfs = {
         "nama": data["nama"], 
         "jurusan": data["jurusan"], 
@@ -173,7 +171,6 @@ def api_sertifikat():
         "path_ijazah": ijazah_filename,
         "path_skpi": skpi_filename
     }
-    # --- AKHIR DARI PERUBAHAN ---
     
     metadata_json_string = json.dumps(full_metadata_for_ipfs, indent=2)
     metadata_stream = io.BytesIO(metadata_json_string.encode('utf-8'))
@@ -234,4 +231,5 @@ def api_verify_pdf():
 
 if __name__ == '__main__':
     # The debug flag will be set based on an environment variable, e.g., FLASK_DEBUG
-    app.run(debug=os.getenv('FLASK_DEBUG', 'False').lower() in ['true', '1', 't'])
+    # app.run(debug=os.getenv('FLASK_DEBUG', 'False').lower() in ['true', '1', 't'])
+    app.run(host='192.168.1.19', port=5000, debug=True)
