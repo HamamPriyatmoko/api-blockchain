@@ -1,8 +1,7 @@
 from flask import Flask, request, jsonify
 from web3 import Web3
-import requests
 from utils.utils import hash_cert_data, format_sertifikat_data, parse_certificate_text, fetch_ipfs_data
-from utils.contract_data import contract_abi # Assuming contract_address is now in .env
+from utils.contract_data import contract_abi
 from flask_cors import CORS
 from ipfs_client.ipfs_client import upload_directory_to_pinata
 import fitz
@@ -16,6 +15,9 @@ from flask_jwt_extended import (
     JWTManager, create_access_token
 )
 from utils.db import get_db
+from datetime import datetime, timedelta, timezone
+import secrets
+from utils.email_sender import send_reset_email
 
 load_dotenv()
 
@@ -25,6 +27,7 @@ print(GANACHE_URL)
 PRIVATE_KEY = os.getenv('PRIVATE_KEY')
 IPFS_GATEWAY = os.getenv('IPFS_GATEWAY')
 CONTRACT_ADDRESS = os.getenv('CONTRACT_ADDRESS')
+URL_FRONTEND = os.getenv('URL_FRONTEND')
 
 # Validation for Environment Variables
 if not all([GANACHE_URL, PRIVATE_KEY, IPFS_GATEWAY, CONTRACT_ADDRESS]):
@@ -49,29 +52,37 @@ else:
     print("Connection failed")
     exit()
 
-# --- Global Variables ---
+# Global Variables
 ADMIN_ACCOUNT = w3.eth.account.from_key(PRIVATE_KEY)
 contract = w3.eth.contract(address=CONTRACT_ADDRESS, abi=contract_abi)
+
 
 @app.route("/api/auth/register", methods=["POST"])
 def register():
     data = request.get_json() or {}
     username = data.get("username", "").strip()
+    email = data.get("email", "").strip()
     password = data.get("password", "")
-    if not username or not password:
-        return jsonify({"error": "Username & password wajib diisi"}), 400
+
+    if not username or not password or not email:
+        return jsonify({"error": "Username, email, & password wajib diisi"}), 400
 
     db = get_db()
     with db.cursor() as cur:
-        # cek unik
+
         cur.execute("SELECT id FROM users WHERE username=%s", (username,))
         if cur.fetchone():
             return jsonify({"error": "Username sudah terdaftar"}), 400
+        
+        cur.execute("SELECT id FROM users WHERE email=%s", (email,))
+        if cur.fetchone():
+            return jsonify({"error": "Email sudah terdaftar"}), 400
 
         pw_hash = bcrypt.generate_password_hash(password).decode("utf-8")
+        
         cur.execute(
-            "INSERT INTO users (username, password_hash) VALUES (%s,%s)",
-            (username, pw_hash)
+            "INSERT INTO users (username, email, password_hash) VALUES (%s, %s, %s)",
+            (username, email, pw_hash)
         )
     return jsonify({"message": "Registrasi berhasil"}), 201
 
@@ -93,12 +104,79 @@ def login():
     access_token = create_access_token(identity=user["id"])
     return jsonify({"access_token": access_token}), 200
 
+@app.route("/api/auth/forgot-password", methods=["POST"])
+def forgot_password():
+    data = request.get_json() or {}
+    email = data.get("email", "").strip()
+    if not email:
+        return jsonify({"error": "Email wajib diisi"}), 400
+
+    db = get_db()
+    with db.cursor() as cur:
+        cur.execute("SELECT id, username FROM users WHERE email=%s", (email,))
+        user = cur.fetchone()
+
+        if not user:
+            return jsonify({"message": "Jika email Anda terdaftar, instruksi reset akan dikirim."}), 200
+
+        token = secrets.token_urlsafe(32)
+        expiry_time = datetime.now(timezone.utc) + timedelta(hours=1)
+
+        cur.execute(
+            "UPDATE users SET reset_token=%s, reset_token_expiry=%s WHERE id=%s",
+            (token, expiry_time, user["id"])
+        )
+
+    reset_link = f"{URL_FRONTEND}/reset-password/{token}"
+    print(reset_link)
+    
+    # PANGGIL FUNGSI PENGIRIM EMAIL DI SINI
+    email_sent = send_reset_email(email, reset_link)
+
+    if not email_sent:
+        app.logger.error(f"Gagal mengirim email reset password ke {email}")
+    
+    return jsonify({"message": "Jika email Anda terdaftar, instruksi reset password telah dikirim."}), 200
+
+@app.route("/api/auth/reset-password", methods=["POST"])
+def reset_password():
+    data = request.get_json() or {}
+    token = data.get("token")
+    new_password = data.get("password")
+
+    if not token or not new_password:
+        return jsonify({"error": "Token dan password baru wajib diisi"}), 400
+
+    db = get_db()
+    with db.cursor() as cur:
+        # Cari user berdasarkan token dan pastikan token belum kedaluwarsa
+        current_time = datetime.now(timezone.utc)
+        cur.execute(
+            "SELECT id FROM users WHERE reset_token=%s AND reset_token_expiry > %s",
+            (token, current_time)
+        )
+        user = cur.fetchone()
+
+        if not user:
+            return jsonify({"error": "Token tidak valid atau sudah kedaluwarsa"}), 400
+        
+        # Hash password baru
+        pw_hash = bcrypt.generate_password_hash(new_password).decode("utf-8")
+
+        # Update password dan hapus token reset
+        cur.execute(
+            "UPDATE users SET password_hash=%s, reset_token=NULL, reset_token_expiry=NULL WHERE id=%s",
+            (pw_hash, user["id"])
+        )
+
+    return jsonify({"message": "Password berhasil direset. Silakan login."}), 200
+
 @app.route("/api/universitas", methods=["GET"])
 def get_universitas():
     """Mengembalikan daftar semua universitas."""
     try:
         db = get_db()
-        with db.cursor(dictionary=True) as cursor:
+        with db.cursor() as cursor:
             cursor.execute("SELECT id, nama_universitas FROM universitas ORDER BY nama_universitas ASC")
             all_universitas = cursor.fetchall()
         return jsonify(all_universitas), 200
@@ -111,7 +189,7 @@ def get_fakultas_by_universitas(id_universitas):
     """Mengembalikan daftar fakultas untuk satu universitas tertentu."""
     try:
         db = get_db()
-        with db.cursor(dictionary=True) as cursor:
+        with db.cursor() as cursor:
             cursor.execute(
                 "SELECT id, nama_fakultas FROM fakultas WHERE id_universitas = %s ORDER BY nama_fakultas ASC", 
                 (id_universitas,)
@@ -127,7 +205,7 @@ def get_jurusan_by_fakultas(id_fakultas):
     """Mengembalikan daftar jurusan untuk satu fakultas tertentu."""
     try:
         db = get_db()
-        with db.cursor(dictionary=True) as cursor:
+        with db.cursor() as cursor:
             cursor.execute(
                 "SELECT id, nama_jurusan FROM jurusan WHERE id_fakultas = %s ORDER BY nama_jurusan ASC",
                 (id_fakultas,)
@@ -277,7 +355,7 @@ def api_verify_pdf():
 if __name__ == '__main__':
     # The debug flag will be set based on an environment variable, e.g., FLASK_DEBUG
     # app.run(debug=os.getenv('FLASK_DEBUG', 'False').lower() in ['true', '1', 't'])
-    host = os.getenv('FLASK_RUN_HOST', '0.0.0.0')
-    port = int(os.getenv('FLASK_RUN_PORT', 5000))
+    host = os.getenv('FLASK_RUN_HOST')
+    # port = int(os.getenv('FLASK_RUN_PORT'))
     # debug_mode = os.getenv('FLASK_DEBUG', 'False').lower() in ['true', '1', 't']
-    app.run(host=host, port=port, debug=True)
+    app.run(host=host, port=5000, debug=True)

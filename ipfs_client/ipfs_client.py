@@ -7,9 +7,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 PINATA_JWT = os.getenv('PINATA_JWT')
-PINNING_PINATA = os.getenv('PINNING_PINATA')
+# PINNING_PINATA = os.getenv('PINNING_PINATA')
 
-# Pastikan PINATA_JWT tersedia
 if not PINATA_JWT:
     raise ValueError("Variabel lingkungan PINATA_JWT tidak ditemukan. Harap periksa file .env Anda.")
 
@@ -18,7 +17,7 @@ def upload_directory_to_pinata(files_data, directory_name="my-dir"):
     PERINGATAN: Versi ini akan membuat struktur direktori bersarang
     (contoh: /ipfs/CID/sertifikat-nim/namafile.pdf)
     """
-    url = PINNING_PINATA
+    url = 'https://api.pinata.cloud/pinning/pinFileToIPFS'
     headers = {
         "Authorization": f"Bearer {PINATA_JWT}"
     }
@@ -35,7 +34,7 @@ def upload_directory_to_pinata(files_data, directory_name="my-dir"):
 
     files = []
     for fname, stream in files_data:
-        # Baris ini membuat path manual, yang menyebabkan direktori bersarang
+    
         full_path = f"{directory_name}/{fname}" 
         
         files.append(
