@@ -130,7 +130,6 @@ def forgot_password():
     reset_link = f"{URL_FRONTEND}/reset-password/{token}"
     print(reset_link)
     
-    # PANGGIL FUNGSI PENGIRIM EMAIL DI SINI
     email_sent = send_reset_email(email, reset_link)
 
     if not email_sent:
@@ -149,7 +148,7 @@ def reset_password():
 
     db = get_db()
     with db.cursor() as cur:
-        # Cari user berdasarkan token dan pastikan token belum kedaluwarsa
+
         current_time = datetime.now(timezone.utc)
         cur.execute(
             "SELECT id FROM users WHERE reset_token=%s AND reset_token_expiry > %s",
@@ -160,10 +159,8 @@ def reset_password():
         if not user:
             return jsonify({"error": "Token tidak valid atau sudah kedaluwarsa"}), 400
         
-        # Hash password baru
         pw_hash = bcrypt.generate_password_hash(new_password).decode("utf-8")
 
-        # Update password dan hapus token reset
         cur.execute(
             "UPDATE users SET password_hash=%s, reset_token=NULL, reset_token_expiry=NULL WHERE id=%s",
             (pw_hash, user["id"])
@@ -216,6 +213,7 @@ def get_jurusan_by_fakultas(id_fakultas):
         app.logger.error(f"Error fetching jurusan for faculty {id_fakultas}: {e}")
         return jsonify({"error": "Gagal mengambil data jurusan"}), 500
 
+# Mengambil Detail Data Sertifikat Di IPFS
 @app.route('/api/certificate/metadata', methods=['GET'])
 def get_certificate_metadata():
     cid = request.args.get('cid')
@@ -235,7 +233,7 @@ def get_certificate_metadata():
     except Exception as e:
         return jsonify({"error": f"An unexpected server error occurred: {str(e)}"}), 500
 
-# # Endpoint untuk melihat semua transaksi yang disimpan di Blockchain
+# Melihat Semua Data Diblockchain
 @lru_cache(maxsize=512)
 def format_tuple_cached(raw_tuple):
     return format_sertifikat_data(raw_tuple)
@@ -250,10 +248,12 @@ def get_all_sertifikat():
             try:
                 raw = contract.functions.daftarSertifikat(cert_id).call()
                 fmt = format_sertifikat_data(tuple(raw))
+                print(fmt)
                 sertifikat_list.append({
                     "id":         fmt["id"],
                     "nim":        fmt["nim"],
                     "universitas": fmt["universitas"] or 'N/A',
+                    "timestamp": fmt["timestamp"]
                 })
             except Exception as loop_err:
                 app.logger.warning(f"[{cert_id.hex()}] gagal diproses: {loop_err}")
@@ -299,7 +299,6 @@ def api_sertifikat():
     metadata_stream = io.BytesIO(metadata_json_string.encode('utf-8'))
     metadata_stream.seek(0)
     
-    # Siapkan file untuk diunggah (tidak ada perubahan di sini)
     directory_name = f"sertifikat-{data['nim']}"
     files_for_pin = [
         (ijazah_filename, files["ijazah"].stream),
@@ -307,14 +306,12 @@ def api_sertifikat():
         ("metadata.json", metadata_stream)
     ]
 
-    # Upload ke IPFS (tidak ada perubahan)
     try:
         cidDetail = upload_directory_to_pinata(files_for_pin, directory_name=directory_name)
     except Exception as e:
         app.logger.error(f"Gagal saat upload ke Pinata: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
-    # Kembalikan response (tidak ada perubahan)
     return jsonify({"cidDetail": cidDetail, "hashMetadata": hashMetadata}), 200
 
 @app.route("/api/verify-pdf", methods=["POST"])
@@ -324,21 +321,17 @@ def api_verify_pdf():
     if not pdf:
         return jsonify({"error":"PDF tidak ditemukan"}), 400
 
-    # buka PDF dengan fitz
     pdf_bytes = pdf.stream.read()
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
 
-    # extract teks
     raw_text = ""
     for page in doc:
         raw_text += page.get_text("text")
 
-    # parse fields minimal
     extracted = parse_certificate_text(raw_text)
     if not extracted.get("nim") or not extracted.get("nomerSertifikat"):
         return jsonify({"error":"Gagal ekstrak NIM atau No Sertifikat"}), 400
 
-    # hash hanya nim, universitas, nomerSertifikat
     metadata_to_hash = {
         "nim":             extracted["nim"],
         "universitas":     extracted.get("universitas",""),

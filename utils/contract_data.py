@@ -37,6 +37,18 @@ contract_abi = [
           "internalType": "string",
           "name": "hashMetadata",
           "type": "string"
+        },
+        {
+          "indexed": False,
+          "internalType": "uint256",
+          "name": "blockNumber",
+          "type": "uint256"
+        },
+        {
+          "indexed": False,
+          "internalType": "uint256",
+          "name": "timestamp",
+          "type": "uint256"
         }
       ],
       "name": "SertifikatDiterbitkan",
@@ -105,6 +117,11 @@ contract_abi = [
         {
           "internalType": "uint256",
           "name": "blockNumber",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "timestamp",
           "type": "uint256"
         }
       ],
@@ -252,6 +269,11 @@ contract_abi = [
               "internalType": "uint256",
               "name": "blockNumber",
               "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "timestamp",
+              "type": "uint256"
             }
           ],
           "internalType": "struct BlockchainSertifikasiPublik.Sertifikat",
@@ -308,6 +330,11 @@ contract_abi = [
             {
               "internalType": "uint256",
               "name": "blockNumber",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "timestamp",
               "type": "uint256"
             }
           ],
