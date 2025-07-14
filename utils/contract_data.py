@@ -1,10 +1,5 @@
 contract_abi = [
     {
-      "inputs": [],
-      "stateMutability": "nonpayable",
-      "type": "constructor"
-    },
-    {
       "anonymous": False,
       "inputs": [
         {
@@ -22,38 +17,42 @@ contract_abi = [
         {
           "indexed": False,
           "internalType": "string",
-          "name": "nama",
+          "name": "universitas",
           "type": "string"
         },
         {
           "indexed": False,
           "internalType": "string",
-          "name": "tanggalTerbit",
+          "name": "cidDetail",
           "type": "string"
         },
         {
           "indexed": False,
-          "internalType": "bytes32",
+          "internalType": "string",
+          "name": "nomerSertifikat",
+          "type": "string"
+        },
+        {
+          "indexed": False,
+          "internalType": "string",
           "name": "hashMetadata",
-          "type": "bytes32"
+          "type": "string"
+        },
+        {
+          "indexed": False,
+          "internalType": "uint256",
+          "name": "blockNumber",
+          "type": "uint256"
+        },
+        {
+          "indexed": False,
+          "internalType": "uint256",
+          "name": "timestamp",
+          "type": "uint256"
         }
       ],
       "name": "SertifikatDiterbitkan",
       "type": "event"
-    },
-    {
-      "inputs": [],
-      "name": "admin",
-      "outputs": [
-        {
-          "internalType": "address",
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function",
-      "constant": True
     },
     {
       "inputs": [
@@ -97,52 +96,22 @@ contract_abi = [
         },
         {
           "internalType": "string",
-          "name": "nama",
-          "type": "string"
-        },
-        {
-          "internalType": "string",
           "name": "universitas",
           "type": "string"
         },
         {
           "internalType": "string",
-          "name": "jurusan",
+          "name": "cidDetail",
           "type": "string"
         },
         {
           "internalType": "string",
-          "name": "tanggalTerbit",
-          "type": "string"
-        },
-        {
-          "internalType": "bytes32",
           "name": "hashMetadata",
-          "type": "bytes32"
-        },
-        {
-          "internalType": "string",
-          "name": "cidSuratBebasPerpustakaan",
           "type": "string"
         },
         {
           "internalType": "string",
-          "name": "cidSuratBebasLaboratorium",
-          "type": "string"
-        },
-        {
-          "internalType": "string",
-          "name": "cidSuratBebasKeuangan",
-          "type": "string"
-        },
-        {
-          "internalType": "string",
-          "name": "cidBuktiPenyerahanSkripsi",
-          "type": "string"
-        },
-        {
-          "internalType": "string",
-          "name": "cidSertifikatToefl",
+          "name": "nomerSertifikat",
           "type": "string"
         },
         {
@@ -151,9 +120,9 @@ contract_abi = [
           "type": "uint256"
         },
         {
-          "internalType": "bool",
-          "name": "valid",
-          "type": "bool"
+          "internalType": "uint256",
+          "name": "timestamp",
+          "type": "uint256"
         }
       ],
       "stateMutability": "view",
@@ -163,12 +132,32 @@ contract_abi = [
     {
       "inputs": [
         {
+          "internalType": "string",
+          "name": "",
+          "type": "string"
+        }
+      ],
+      "name": "idByHashMetadata",
+      "outputs": [
+        {
           "internalType": "bytes32",
           "name": "",
           "type": "bytes32"
         }
       ],
-      "name": "idByHashMetadata",
+      "stateMutability": "view",
+      "type": "function",
+      "constant": True
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "",
+          "type": "string"
+        }
+      ],
+      "name": "idByNIM",
       "outputs": [
         {
           "internalType": "bytes32",
@@ -191,56 +180,26 @@ contract_abi = [
             },
             {
               "internalType": "string",
-              "name": "nama",
-              "type": "string"
-            },
-            {
-              "internalType": "string",
               "name": "universitas",
               "type": "string"
             },
             {
               "internalType": "string",
-              "name": "jurusan",
+              "name": "cidDetail",
               "type": "string"
             },
             {
               "internalType": "string",
-              "name": "tanggalTerbit",
-              "type": "string"
-            },
-            {
-              "internalType": "bytes32",
               "name": "hashMetadata",
-              "type": "bytes32"
-            },
-            {
-              "internalType": "string",
-              "name": "cidSuratBebasPerpustakaan",
               "type": "string"
             },
             {
               "internalType": "string",
-              "name": "cidSuratBebasLaboratorium",
-              "type": "string"
-            },
-            {
-              "internalType": "string",
-              "name": "cidSuratBebasKeuangan",
-              "type": "string"
-            },
-            {
-              "internalType": "string",
-              "name": "cidBuktiPenyerahanSkripsi",
-              "type": "string"
-            },
-            {
-              "internalType": "string",
-              "name": "cidSertifikatToefl",
+              "name": "nomerSertifikat",
               "type": "string"
             }
           ],
-          "internalType": "struct BlockchainSertifikasi.SertifikatInput",
+          "internalType": "struct BlockchainSertifikasiPublik.SertifikatInput",
           "name": "_input",
           "type": "tuple"
         }
@@ -249,6 +208,20 @@ contract_abi = [
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "getAllId",
+      "outputs": [
+        {
+          "internalType": "bytes32[]",
+          "name": "",
+          "type": "bytes32[]"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function",
+      "constant": True
     },
     {
       "inputs": [
@@ -274,52 +247,22 @@ contract_abi = [
             },
             {
               "internalType": "string",
-              "name": "nama",
-              "type": "string"
-            },
-            {
-              "internalType": "string",
               "name": "universitas",
               "type": "string"
             },
             {
               "internalType": "string",
-              "name": "jurusan",
+              "name": "cidDetail",
               "type": "string"
             },
             {
               "internalType": "string",
-              "name": "tanggalTerbit",
-              "type": "string"
-            },
-            {
-              "internalType": "bytes32",
               "name": "hashMetadata",
-              "type": "bytes32"
-            },
-            {
-              "internalType": "string",
-              "name": "cidSuratBebasPerpustakaan",
               "type": "string"
             },
             {
               "internalType": "string",
-              "name": "cidSuratBebasLaboratorium",
-              "type": "string"
-            },
-            {
-              "internalType": "string",
-              "name": "cidSuratBebasKeuangan",
-              "type": "string"
-            },
-            {
-              "internalType": "string",
-              "name": "cidBuktiPenyerahanSkripsi",
-              "type": "string"
-            },
-            {
-              "internalType": "string",
-              "name": "cidSertifikatToefl",
+              "name": "nomerSertifikat",
               "type": "string"
             },
             {
@@ -328,12 +271,12 @@ contract_abi = [
               "type": "uint256"
             },
             {
-              "internalType": "bool",
-              "name": "valid",
-              "type": "bool"
+              "internalType": "uint256",
+              "name": "timestamp",
+              "type": "uint256"
             }
           ],
-          "internalType": "struct BlockchainSertifikasi.Sertifikat",
+          "internalType": "struct BlockchainSertifikasiPublik.Sertifikat",
           "name": "",
           "type": "tuple"
         }
@@ -345,12 +288,12 @@ contract_abi = [
     {
       "inputs": [
         {
-          "internalType": "bytes32",
+          "internalType": "string",
           "name": "_hashMetadata",
-          "type": "bytes32"
+          "type": "string"
         }
       ],
-      "name": "getSertifikatByHash",
+      "name": "findSertifikatHash",
       "outputs": [
         {
           "components": [
@@ -366,52 +309,22 @@ contract_abi = [
             },
             {
               "internalType": "string",
-              "name": "nama",
-              "type": "string"
-            },
-            {
-              "internalType": "string",
               "name": "universitas",
               "type": "string"
             },
             {
               "internalType": "string",
-              "name": "jurusan",
+              "name": "cidDetail",
               "type": "string"
             },
             {
               "internalType": "string",
-              "name": "tanggalTerbit",
-              "type": "string"
-            },
-            {
-              "internalType": "bytes32",
               "name": "hashMetadata",
-              "type": "bytes32"
-            },
-            {
-              "internalType": "string",
-              "name": "cidSuratBebasPerpustakaan",
               "type": "string"
             },
             {
               "internalType": "string",
-              "name": "cidSuratBebasLaboratorium",
-              "type": "string"
-            },
-            {
-              "internalType": "string",
-              "name": "cidSuratBebasKeuangan",
-              "type": "string"
-            },
-            {
-              "internalType": "string",
-              "name": "cidBuktiPenyerahanSkripsi",
-              "type": "string"
-            },
-            {
-              "internalType": "string",
-              "name": "cidSertifikatToefl",
+              "name": "nomerSertifikat",
               "type": "string"
             },
             {
@@ -420,12 +333,12 @@ contract_abi = [
               "type": "uint256"
             },
             {
-              "internalType": "bool",
-              "name": "valid",
-              "type": "bool"
+              "internalType": "uint256",
+              "name": "timestamp",
+              "type": "uint256"
             }
           ],
-          "internalType": "struct BlockchainSertifikasi.Sertifikat",
+          "internalType": "struct BlockchainSertifikasiPublik.Sertifikat",
           "name": "",
           "type": "tuple"
         }
@@ -435,5 +348,3 @@ contract_abi = [
       "constant": True
     }
   ]
-
-contract_address = '0xc884d924FD65a82631Fe1E8B6C77560543D9Ef9d' # Ganti sesuai alamat kontrak kamu

@@ -1,48 +1,55 @@
 import requests
 import json
-from config import PINATA_API_KEY, PINATA_SECRET_API_KEY
+import os
+from dotenv import load_dotenv
 
-def upload_file_to_pinata(file_stream, filename):
+# Memuat environment variables dari file .env
+load_dotenv()
+
+PINATA_JWT = os.getenv('PINATA_JWT')
+# PINNING_PINATA = os.getenv('PINNING_PINATA')
+
+if not PINATA_JWT:
+    raise ValueError("Variabel lingkungan PINATA_JWT tidak ditemukan. Harap periksa file .env Anda.")
+
+def upload_directory_to_pinata(files_data, directory_name="my-dir"):
     """
-    Uploads a file-like object to Pinata via pinFileToIPFS endpoint.
-    Returns the IPFS CID (string).
+    PERINGATAN: Versi ini akan membuat struktur direktori bersarang
+    (contoh: /ipfs/CID/sertifikat-nim/namafile.pdf)
     """
-    url = "https://api.pinata.cloud/pinning/pinFileToIPFS"
+    url = 'https://api.pinata.cloud/pinning/pinFileToIPFS'
     headers = {
-        "pinata_api_key": PINATA_API_KEY,
-        "pinata_secret_api_key": PINATA_SECRET_API_KEY
-    }
-    # file_stream should be a file-like object, filename is the original name
-    files = {
-        'file': (filename, file_stream)
-    }
-    response = requests.post(url, files=files, headers=headers)
-    response.raise_for_status()
-    return response.json()['IpfsHash']
-
-def upload_json_to_pinata(data: dict) -> str:
-    url = "https://api.pinata.cloud/pinning/pinJSONToIPFS"
-    headers = {
-        "pinata_api_key": PINATA_API_KEY,
-        "pinata_secret_api_key": PINATA_SECRET_API_KEY,
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "pinataContent": data
+        "Authorization": f"Bearer {PINATA_JWT}"
     }
 
-    response = requests.post(url, headers=headers, data=json.dumps(payload))
+    data = {
+        "pinataOptions": json.dumps({
+            "cidVersion": 1,
+            "wrapWithDirectory": True 
+        }),
+        "pinataMetadata": json.dumps({
+            "name": directory_name 
+        })
+    }
 
-    if response.status_code == 200:
-        res_json = response.json()
-        return res_json['IpfsHash']
-    else:
-        raise Exception(f"Failed to upload to Pinata: {response.text}")
+    files = []
+    for fname, stream in files_data:
+    
+        full_path = f"{directory_name}/{fname}" 
+        
+        files.append(
+            ("file", (full_path, stream.read(), "application/octet-stream"))
+        )
 
-def get_json_from_ipfs(cid: str) -> dict:
-    url = f"https://gateway.pinata.cloud/ipfs/{cid}"
-    response = requests.get(url)
-    if response.status_code == 200:
-        return response.json()
-    else:
-        raise Exception(f"Failed to fetch data from IPFS: {response.status_code} {response.text}")
+    try:
+        resp = requests.post(url, headers=headers, files=files, data=data, timeout=60) 
+        resp.raise_for_status()
+        return resp.json()["IpfsHash"]
+
+    except requests.exceptions.HTTPError as err:
+        error_message = f"Error dari Pinata API: {err.response.status_code} - {err.response.text}"
+        print(f"[Pinata] HTTP Error: {error_message}")
+        raise Exception(error_message) from err
+    except Exception as e:
+        print(f"[Pinata] Terjadi error tak terduga: {e}")
+        raise e
