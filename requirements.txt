@@ -66,7 +66,6 @@ PyMySQL==1.1.1
 python-dotenv==1.1.0
 python-http-client==3.3.7
 pyunormalize==16.0.0
-pywin32==310
 qrcode==8.2
 referencing==0.36.2
 regex==2024.11.6
