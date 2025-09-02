@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from web3 import Web3
 from utils.utils import hash_cert_data, format_sertifikat_data, parse_certificate_text, fetch_ipfs_data
 from utils.contract_data import contract_abi
+from utils.pdf import create_certificate_pdf
 from flask_cors import CORS
 from ipfs_client.ipfs_client import upload_directory_to_pinata
 import fitz
@@ -269,6 +270,7 @@ def get_all_sertifikat():
 
 @app.route("/api/sertifikat", methods=["POST"])
 def api_sertifikat():
+    
     data = {
         "nim": request.form.get("nim", ""), "universitas": request.form.get("universitas", ""),
         "nomerSertifikat": request.form.get("nomerSertifikat", ""), "nama": request.form.get("nama", ""),
@@ -283,14 +285,26 @@ def api_sertifikat():
     metadata_to_hash = {"nim": data["nim"], "universitas": data["universitas"], "nomerSertifikat": data["nomerSertifikat"],}
     hashMetadata = hash_cert_data(metadata_to_hash)
 
+    try:
+        
+        cert_data_for_pdf = {"hashMetadata": hashMetadata, **metadata_to_hash}
+        ipfs_metadata_for_pdf = {k: data[k] for k in ["nama", "jurusan", "fakultas", "tahunLulus"]}
+        
+        generated_pdf_stream = create_certificate_pdf(cert_data_for_pdf, ipfs_metadata_for_pdf)
+    except Exception as e:
+        app.logger.error(f"Gagal membuat PDF ringkasan untuk NIM {data['nim']}: {e}", exc_info=True)
+        return jsonify({"error": "Gagal saat memproses pembuatan PDF sertifikat"}), 500
+
     ijazah_filename = f"ijazah_{data['nim']}.pdf"
     skpi_filename = f"skpi_{data['nim']}.pdf"
+    generated_pdf_filename = f"Sertifikat_{data['nama']}.pdf"
 
     full_metadata_for_ipfs = {
         "nama": data["nama"], 
         "jurusan": data["jurusan"], 
         "fakultas": data["fakultas"], 
         "tahunLulus": data["tahunLulus"],
+        "path_sertifikat_ringkasan": generated_pdf_filename,
         "path_ijazah": ijazah_filename,
         "path_skpi": skpi_filename
     }
@@ -301,8 +315,9 @@ def api_sertifikat():
     
     directory_name = f"sertifikat-{data['nim']}"
     files_for_pin = [
+        (generated_pdf_filename, generated_pdf_stream),
         (ijazah_filename, files["ijazah"].stream),
-        (skpi_filename,   files["skpi"].stream),
+        (skpi_filename, files["skpi"].stream),
         ("metadata.json", metadata_stream)
     ]
 
